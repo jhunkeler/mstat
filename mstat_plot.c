@@ -49,9 +49,11 @@ static int find_program(const char *name) {
     while ((token = strsep(&path, ":")) != NULL) {
         snprintf(pathtest, PATH_MAX - 1, "%s/%s", token, name);
         if (access(pathtest, F_OK | X_OK) == 0) {
+            free(path);
             return 0;
         }
     }
+    free(path);
     return 1;
 }
 
