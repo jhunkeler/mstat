@@ -38,14 +38,17 @@ static int find_program(const char *name) {
     char *path;
     char *pathtmp;
     char *token;
+    char pathtest[PATH_MAX] = {0};
 
     pathtmp = getenv("PATH");
     if (!pathtmp) {
         return 1;
     }
     path = strdup(pathtmp);
+
     while ((token = strsep(&path, ":")) != NULL) {
-        if (access(token, F_OK | X_OK) == 0) {
+        snprintf(pathtest, PATH_MAX - 1, "%s/%s", token, name);
+        if (access(pathtest, F_OK | X_OK) == 0) {
             return 0;
         }
     }
