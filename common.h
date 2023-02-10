@@ -85,5 +85,6 @@ int mstat_write(FILE *fp, struct mstat_record_t *p);
 int mstat_iter(FILE *fp, struct mstat_record_t *p);
 void mstat_get_mmax(const double a[], size_t size, double *min, double *max);
 double mstat_difftimespec(struct timespec end, struct timespec start);
+int mstat_find_program(const char *name, char *where);
 
 #endif //MSTAT_COMMON_H

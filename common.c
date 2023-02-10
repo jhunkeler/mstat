@@ -570,3 +570,45 @@ void mstat_get_mmax(const double a[], size_t size, double *min, double *max) {
         }
     }
 }
+
+/**
+ * Determine if `name` is available on `PATH`
+ * @param name of executable
+ * @return 0 on success. >0 on error
+ */
+int mstat_find_program(const char *name, char *where) {
+    char *path;
+    char *pathtmp;
+    char *path_orig;
+    char *token;
+    char pathtest[PATH_MAX] = {0};
+    char nametmp[PATH_MAX] = {0};
+
+    pathtmp = getenv("PATH");
+    if (!pathtmp) {
+        return 1;
+    }
+    path = strdup(pathtmp);
+    path_orig = path;
+
+    char *last_element = strrchr(name, '/');
+    if (last_element) {
+        strncpy(nametmp, last_element + 1, sizeof(nametmp) - 1);
+    } else {
+        strncpy(nametmp, name, sizeof(nametmp) - 1);
+    }
+
+    while ((token = strsep(&path, ":")) != NULL) {
+        snprintf(pathtest, PATH_MAX - 1, "%s/%s", token, nametmp);
+        if (access(pathtest, F_OK | X_OK) == 0) {
+            if (where) {
+                strcpy(where, pathtest);
+            }
+            free(path_orig);
+            return 0;
+        }
+    }
+    free(path);
+    return 1;
+}
+
