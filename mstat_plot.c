@@ -30,34 +30,6 @@ struct Option {
 
 
 /**
- * Determine if `name` is available on `PATH`
- * @param name of executable
- * @return 0 on success. >0 on error
- */
-static int find_program(const char *name) {
-    char *path;
-    char *pathtmp;
-    char *token;
-    char pathtest[PATH_MAX] = {0};
-
-    pathtmp = getenv("PATH");
-    if (!pathtmp) {
-        return 1;
-    }
-    path = strdup(pathtmp);
-
-    while ((token = strsep(&path, ":")) != NULL) {
-        snprintf(pathtest, PATH_MAX - 1, "%s/%s", token, name);
-        if (access(pathtest, F_OK | X_OK) == 0) {
-            free(path);
-            return 0;
-        }
-    }
-    free(path);
-    return 1;
-}
-
-/**
  * Open a new gnuplot handle
  * @return stream on success, or NULL on error
  */
@@ -348,7 +320,7 @@ int main(int argc, char *argv[]) {
         printf("%s min(%.2lf) max(%.2lf)\n", field[i], mem_min, mem_max);
     }
 
-    if (find_program("gnuplot")) {
+    if (mstat_find_program("gnuplot", NULL)) {
         fprintf(stderr, "To render plots please install gnuplot\n");
         exit(1);
     }
