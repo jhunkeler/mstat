@@ -173,26 +173,6 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handle_interrupt);
     signal(SIGTERM, handle_interrupt);
 
-    // Set up output directory root and file path
-    snprintf(option.filename, PATH_MAX - 1, "%d.mstat", option.pid);
-    if (strlen(option.root)) {
-        // Strip trailing slash from path
-        if (strlen(option.root) > 1 && strrchr(option.root, '/')) {
-            option.root[strlen(option.root) - 1] = '\0';
-        }
-
-        // Die if the output directory doesn't exist
-        if (access(option.root, X_OK) < 0) {
-            perror(option.root);
-            exit(1);
-        }
-
-        // Construct new filename
-        char tmppath[PATH_MAX];
-        snprintf(tmppath, PATH_MAX - 1, "%s/%s", option.root, option.filename);
-        strncpy(option.filename, tmppath, PATH_MAX - 1);
-    }
-
     // Figure out what we are going to monitor.
     // Will it be a user-defined PID or a new process?
     if (option.pid) {
@@ -235,6 +215,26 @@ int main(int argc, char *argv[]) {
     if (smaps_rollup_usable(option.pid) < 0) {
         fprintf(stderr, "pid %d: %s\n", option.pid, strerror(errno));
         exit(1);
+    }
+
+    // Set up output directory root and file path
+    snprintf(option.filename, PATH_MAX - 1, "%d.mstat", option.pid);
+    if (strlen(option.root)) {
+        // Strip trailing slash from path
+        if (strlen(option.root) > 1 && strrchr(option.root, '/')) {
+            option.root[strlen(option.root) - 1] = '\0';
+        }
+
+        // Die if the output directory doesn't exist
+        if (access(option.root, X_OK) < 0) {
+            perror(option.root);
+            exit(1);
+        }
+
+        // Construct new filename
+        char tmppath[PATH_MAX];
+        snprintf(tmppath, PATH_MAX - 1, "%s/%s", option.root, option.filename);
+        strncpy(option.filename, tmppath, PATH_MAX - 1);
     }
 
     // Remove previous mstat data file if clobber is enabled
