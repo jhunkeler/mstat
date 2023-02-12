@@ -166,19 +166,20 @@ static void usage(char *prog) {
     if (sep) {
         name = sep + 1;
     }
-    printf("usage: %s [OPTIONS] <FILE>\n"
-           "-h        this help message\n"
-           "-l        list mstat fields\n"
-           "-f        fields (default: rss,pss,swap)\n"
-           "-v        verbose mode\n"
-           "\n", name);
+    printf("usage: %s [OPTIONS] {FILE}\n"
+           "  -f NAME[,...]   mstat field(s) to plot (default: rss,pss,swap)\n"
+           "  -h              this help message\n"
+           "  -l              list mstat fields\n"
+           "  -v              verbose mode\n"
+           "", name);
 }
 
 void parse_options(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Missing path to *.mstat data\n");
+        usage(argv[0]);
         exit(1);
     }
+
     option.fields[0] = "rss";
     option.fields[1] = "pss";
     option.fields[2] = "swap";
@@ -236,6 +237,8 @@ int main(int argc, char *argv[]) {
     size_t rec;
     FILE *fp;
 
+    // Initialize options
+    memset(&option, 0, sizeof(option));
     parse_options(argc, argv);
 
     rec = 0;

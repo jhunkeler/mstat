@@ -591,11 +591,22 @@ int mstat_find_program(const char *name, char *where) {
     path = strdup(pathtmp);
     path_orig = path;
 
+    if (!strncmp(name, "./", 2)) {
+         strncpy(nametmp, realpath(name, NULL), PATH_MAX - 1);
+         if (access(nametmp, X_OK) < 0) {
+             return 1;
+         }
+         if (where) {
+             strcpy(where, nametmp);
+         }
+        return 0;
+    }
+
     char *last_element = strrchr(name, '/');
     if (last_element) {
-        strncpy(nametmp, last_element + 1, sizeof(nametmp) - 1);
+        strncat(nametmp, last_element + 1, sizeof(nametmp) - 1);
     } else {
-        strncpy(nametmp, name, sizeof(nametmp) - 1);
+        strncat(nametmp, name, sizeof(nametmp) - 1);
     }
 
     while ((token = strsep(&path, ":")) != NULL) {

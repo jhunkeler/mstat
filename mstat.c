@@ -36,6 +36,7 @@ struct Option {
  * @param sig the trapped signal
  */
 static void handle_interrupt(int sig) {
+    printf("SIGNALED %d\n", sig);
     switch (sig) {
         case SIGCHLD:
             waitpid(option.pid, &option.status, WNOHANG|WUNTRACED);
@@ -51,7 +52,7 @@ static void handle_interrupt(int sig) {
                 fflush(option.file);
             } else {
                 if (option.verbose)
-                    fprintf(stderr, "flush request ignored. no handle");
+                    fprintf(stderr, "flush request ignored. no handle\n");
             }
             return;
         case 0:
@@ -78,12 +79,12 @@ static void usage(char *prog) {
         name = sep + 1;
     }
     printf("usage: %s [OPTIONS] [-p PID] | {PROGRAM... ARGS}\n"
-           "-c        clobber 'PID#.mstat' if it exists\n"
-           "-h        this help message\n"
-           "-o DIR    path to output directory (must exist)\n"
-           "-p PID    process id to monitor\n"
-           "-s RATE   samples per second (default: %0.2lf)\n"
-           "-v        increased verbosity\n"
+           "  -c        clobber 'PID#.mstat' if it exists\n"
+           "  -h        this help message\n"
+           "  -o DIR    path to output directory (must exist)\n"
+           "  -p PID    process id to monitor\n"
+           "  -s RATE   samples per second (default: %0.2lf)\n"
+           "  -v        increased verbosity\n"
            "", name, option.sample_rate);
 }
 
@@ -148,15 +149,26 @@ int smaps_rollup_usable(pid_t pid) {
     return access(path, F_OK | R_OK);
 }
 
+static void clearscr() {
+    printf("\33[H");
+    printf("\33[2J");
+}
 
 int main(int argc, char *argv[]) {
-    struct mstat_record_t record = {0};
-    int positional = 0;
+    struct mstat_record_t record;
+    int positional;
+
+    // Initialize options
+    memset(&option, 0, sizeof(option));
+
+    // Initialize record
+    memset(&record, 0, sizeof(record));
 
     // Set default options
     option.sample_rate = 1;
     option.verbose = 0;
     option.clobber = 0;
+
     // Set options based on arguments
     positional = parse_options(argc, argv);
     if (!option.pid && positional < 0) {
@@ -189,14 +201,14 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        if (p == 0) {
-            // "where" is the path to the program to execute
-            char where[PATH_MAX] = {0};
-            if (mstat_find_program(argv[positional], where)) {
-                perror(argv[positional]);
-                exit(1);
-            }
+        // "where" is the path to the program to execute
+        char where[PATH_MAX] = {0};
+        if (mstat_find_program(argv[positional], where)) {
+            perror(argv[positional]);
+            exit(1);
+        }
 
+        if (p == 0) {
             // Execute the requested program (with arguments)
             if (execv(where, &argv[positional]) < 0) {
                 perror("execv");
@@ -262,6 +274,7 @@ int main(int argc, char *argv[]) {
 
     size_t i;
     struct timespec ts_start, ts_end;
+    extern char *mstat_field_names[];
 
     // Begin tracking time.
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
@@ -271,6 +284,9 @@ int main(int argc, char *argv[]) {
            option.pid, option.sample_rate);
     i = 0;
     while (1) {
+        if (option.verbose && isatty(STDOUT_FILENO)) {
+            clearscr();
+        }
         memset(&record, 0, sizeof(record));
         record.pid = option.pid;
 
@@ -288,8 +304,19 @@ int main(int argc, char *argv[]) {
         }
 
         if (option.verbose) {
-            printf("pid: %d, sample: %zu, elapsed: %lf, rss: %li\n",
-                   record.pid, i, record.timestamp, record.rss);
+            printf("\nPID: %d, Sample: %zu, Elapsed: %lf\n----\n",
+                   record.pid, i, record.timestamp);
+            for (size_t n = 2, x = 0; mstat_field_names[n] != NULL; n++) {
+                if (x == 3) {
+                    x = 0;
+                    puts("");
+                }
+                union mstat_field_t field;
+                field = mstat_get_field_by_name(&record, mstat_field_names[n]);
+                printf("\t%-16s %-8lu ", mstat_field_names[n], field.u64);
+                x++;
+            }
+            puts("\n");
         }
 
         if (mstat_write(option.file, &record) < 0) {

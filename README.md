@@ -6,12 +6,12 @@ Record the memory usage of a process over time.
 
 ```text
 usage: mstat [OPTIONS] [-p PID] | {PROGRAM... ARGS}
--c        clobber 'PID#.mstat' if it exists
--h        this help message
--o DIR    path to output directory (must exist)
--p PID    process id to monitor
--s RATE   samples per second (default: 1.00)
--v        increased verbosity
+  -c        clobber 'PID#.mstat' if it exists
+  -h        this help message
+  -o DIR    path to output directory (must exist)
+  -p PID    process id to monitor
+  -s RATE   samples per second (default: 1.00)
+  -v        increased verbosity
 ```
 
 ## Monitor an existing process
@@ -47,6 +47,15 @@ Requires `gnuplot` to be installed.
 - Arch Linux
   - `pacman -S gnuplot`
 
+```text
+usage: mstat_plot [OPTIONS] {FILE}
+  -f NAME[,...]   mstat field(s) to plot (default: rss,pss,swap)
+  -h              this help message
+  -l              list mstat fields
+  -v              verbose mode
+```
+
+### Render
 
 ```shell
 $ mstat_plot 12345.mstat
