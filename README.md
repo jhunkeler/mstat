@@ -2,6 +2,22 @@
 
 Record the memory usage of a process over time.
 
+## Installation
+
+- **Requires**
+  - Linux
+  - `make`
+  - `cmake` (>= v3.x)
+  - `gcc` or `clang` (C99 compiler)
+  - `gnuplot` (optional)
+
+```shell
+git clone https://github.com/jhunkeler/mstat && cd mstat
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local .
+make
+make install
+```
+
 # How to use MSTAT
 
 ```text
