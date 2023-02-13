@@ -60,10 +60,13 @@ static void handle_interrupt(int sig) {
         case 0:
         case SIGTERM:
         case SIGINT:
+            puts("");
             if (option.file) {
                 fflush(option.file);
                 fclose(option.file);
-                printf("data written: %s\n", option.filename);
+                // Let stdout/stderr catch up
+                usleep(100000);
+                printf("MSTAT file written: %s\n", realpath(option.filename, NULL));
             }
             exit(0);
         default:
@@ -213,7 +216,12 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
+        int stdin_handle = -1;
         if (p == 0) {
+            // Give control of STDIN to the child
+            dup2(STDIN_FILENO, stdin_handle);
+            close(STDIN_FILENO);
+
             // Execute the requested program (with arguments)
             if (execv(where, &argv[positional]) < 0) {
                 perror("execv");
@@ -225,6 +233,11 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
         }
+
+        // Give control of STDIN back to the parent
+        dup2(stdin_handle, STDIN_FILENO);
+        close(stdin_handle);
+
         option.pid = p;
     }
 
