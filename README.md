@@ -50,7 +50,7 @@ Samples per second: 10000.00
 Mem:        28455904     8951836    10728332      476032     8775736    18596172
 Swap:       16777212           0    16777212
 pid 148257 returned 0
-data written: 12345.mstat
+MSTAT file written: /path/to/12345.mstat
 ```
 
 ## Plotting
