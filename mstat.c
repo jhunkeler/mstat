@@ -8,6 +8,7 @@
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+static int enable_cls = 1;
 
 struct Option {
     /** Increased verbosity */
@@ -36,7 +37,7 @@ struct Option {
  * @param sig the trapped signal
  */
 static void handle_interrupt(int sig) {
-    printf("SIGNALED %d\n", sig);
+    enable_cls = 0;
     switch (sig) {
         case SIGCHLD:
             waitpid(option.pid, &option.status, WNOHANG|WUNTRACED);
@@ -45,6 +46,7 @@ static void handle_interrupt(int sig) {
             } else {
                 fprintf(stderr, "warning: pid %d is likely defunct\n", option.pid);
             }
+            return;
         case SIGUSR1:
             if (option.file) {
                 if (option.verbose)
@@ -67,6 +69,7 @@ static void handle_interrupt(int sig) {
         default:
             break;
     }
+    enable_cls = 1;
 }
 
 static void usage(char *prog) {
@@ -150,6 +153,8 @@ int smaps_rollup_usable(pid_t pid) {
 }
 
 static void clearscr() {
+    if (!enable_cls)
+        return;
     printf("\33[H");
     printf("\33[2J");
 }
@@ -280,8 +285,10 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
 
     // Begin sample loop
-    printf("PID: %d\nSamples per second: %.2lf\n(interrupt with ctrl-c...)\n",
+    printf("PID: %d\nSamples per second: %.2lf\n",
            option.pid, option.sample_rate);
+    printf("(interrupt with ctrl-c...)\n");
+
     i = 0;
     while (1) {
         if (option.verbose && isatty(STDOUT_FILENO)) {
@@ -317,6 +324,7 @@ int main(int argc, char *argv[]) {
                 x++;
             }
             puts("\n");
+            printf("(interrupt with ctrl-c...)\n");
         }
 
         if (mstat_write(option.file, &record) < 0) {
