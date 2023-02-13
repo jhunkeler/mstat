@@ -6,3 +6,6 @@ CMakeCache.txt
 Makefile
 cmake_install.cmake
 CMakeFiles/
+mstat
+mstat_export
+mstat_plot
