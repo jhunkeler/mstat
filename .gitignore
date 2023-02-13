@@ -2,3 +2,11 @@
 cmake-*
 *.dat
 *.mstat
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+CMakeFiles/
+mstat
+mstat_export
+mstat_plot
+install_manifest.txt
