@@ -64,9 +64,8 @@ int mstat_get_field_count(FILE *fp) {
  */
 char **mstat_read_fields(FILE *fp) {
     char **fields;
-    int total = 0;
-    //fseek(fp, MSTAT_FIELD_COUNT, SEEK_SET);
-    //fread(&total, sizeof(total), 1, fp);
+    int total;
+
     total = mstat_get_field_count(fp);
     fseek(fp, MSTAT_MAGIC_SIZE, SEEK_SET);
     fields = calloc(total + 1, sizeof(*fields));
@@ -74,7 +73,7 @@ char **mstat_read_fields(FILE *fp) {
         perror("Unable to allocate memory for fields");
         return NULL;
     }
-    for (unsigned i = 0; i < total; i++) {
+    for (int i = 0; i < total; i++) {
         char buf[255] = {0};
         unsigned len;
         fread(&len, sizeof(len), 1, fp);
@@ -268,7 +267,7 @@ FILE *mstat_open(const char *filename) {
     char mode[4] = {0};
     int do_header = 0;
 
-    strcpy(mode, "rb+");
+    strcpy(mode, "rb");
     if (access(filename, F_OK) < 0) {
         do_header = 1;
         strcpy(mode, "wb+");
@@ -379,7 +378,7 @@ char *mstat_get_key_smaps(char *data, const char *key) {
  * @param fp pointer to file stream
  * @return TODO
  */
-int mstat_read_smaps(struct mstat_record_t *p, FILE *fp) {
+void mstat_read_smaps(struct mstat_record_t *p, FILE *fp) {
     char data[1024] = {0};
     for (size_t i = 0; fgets(data, sizeof(data) - 1, fp) != NULL; i++) {
         if (mstat_get_key_smaps(data, "Rss")) {
@@ -484,7 +483,7 @@ int mstat_attach(struct mstat_record_t *p, pid_t pid) {
  */
 int mstat_write_header(FILE *fp) {
     fwrite(mstat_magic_bytes, 6, 1, fp);
-    for (int i = 0; i < MSTAT_MAGIC_SIZE - sizeof(mstat_magic_bytes); i++) {
+    for (int i = 0; i < (int)(MSTAT_MAGIC_SIZE - sizeof(mstat_magic_bytes)); i++) {
         if (!fwrite("\0", 1, 1, fp)) {
             return -1;
         }
@@ -581,7 +580,7 @@ int mstat_find_program(const char *name, char *where) {
     char *pathtmp;
     char *path_orig;
     char *token;
-    char pathtest[PATH_MAX] = {0};
+    char pathtest[PATH_MAX * 2] = {0};
     char nametmp[PATH_MAX] = {0};
 
     pathtmp = getenv("PATH");
@@ -592,34 +591,70 @@ int mstat_find_program(const char *name, char *where) {
     path_orig = path;
 
     if (!strncmp(name, "./", 2)) {
-         strncpy(nametmp, realpath(name, NULL), PATH_MAX - 1);
-         if (access(nametmp, X_OK) < 0) {
-             return 1;
-         }
-         if (where) {
-             strcpy(where, nametmp);
-         }
+        char *rp = NULL;
+        rp = realpath(name, NULL);
+        if (!rp) {
+            perror("Unable to construct path");
+            return 1;
+        }
+        strncpy(nametmp, rp, PATH_MAX - 1);
+        free(rp);
+        if (access(nametmp, X_OK) < 0) {
+            free(path);
+            return 1;
+        }
+        if (where) {
+            strcpy(where, nametmp);
+        }
+        free(path);
         return 0;
     }
 
     char *last_element = strrchr(name, '/');
     if (last_element) {
-        strncat(nametmp, last_element + 1, sizeof(nametmp) - 1);
+        strncat(nametmp, last_element + 1, sizeof(nametmp) - strlen(nametmp) - 1);
     } else {
-        strncat(nametmp, name, sizeof(nametmp) - 1);
+        strncat(nametmp, name, sizeof(nametmp) - strlen(nametmp) - 1);
     }
 
     while ((token = strsep(&path, ":")) != NULL) {
-        snprintf(pathtest, PATH_MAX - 1, "%s/%s", token, nametmp);
+        snprintf(pathtest, sizeof(pathtest) - 1, "%s/%s", token, nametmp);
         if (access(pathtest, F_OK | X_OK) == 0) {
             if (where) {
                 strcpy(where, pathtest);
             }
-            free(path_orig);
+            path = path_orig;
+            free(path);
             return 0;
         }
     }
     free(path);
     return 1;
+}
+
+void mstat_check_argument_str(char **x, char *arg, int i) {
+    char *value = x[i+1];
+    if (value == NULL || *value == '-') {
+        fprintf(stderr, "error: -%s requires a string value\n", arg);
+        exit(1);
+    }
+}
+
+void mstat_check_argument_int(char **x, char *arg, int i) {
+    char *errptr = NULL;
+    long n = strtol(x[i + 1], &errptr, 10);
+    if (n == 0 && (errptr && *errptr != '\0')) {
+        fprintf(stderr, "error: -%s requires an integer value (got: '%s')\n", arg, errptr);
+        exit(1);
+    }
+}
+
+void mstat_check_argument_double(char **x, char *arg, int i) {
+    char *errptr = NULL;
+    double n = strtod(x[i + 1], &errptr);
+    if (n == 0 && (errptr && *errptr != '\0')) {
+        fprintf(stderr, "error: -%s requires a double-precision value (got: '%s')\n", arg, errptr);
+        exit(1);
+    }
 }
 

@@ -78,7 +78,7 @@ FILE *mstat_open(const char *filename);
 int mstat_rewind(FILE *fp);
 ssize_t mstat_get_value_smaps(char *data);
 char *mstat_get_key_smaps(char *data, const char *key);
-int mstat_read_smaps(struct mstat_record_t *p, FILE *fp);
+void mstat_read_smaps(struct mstat_record_t *p, FILE *fp);
 int mstat_attach(struct mstat_record_t *p, pid_t pid);
 int mstat_write_header(FILE *fp);
 int mstat_write(FILE *fp, struct mstat_record_t *p);
@@ -86,5 +86,8 @@ int mstat_iter(FILE *fp, struct mstat_record_t *p);
 void mstat_get_mmax(const double a[], size_t size, double *min, double *max);
 double mstat_difftimespec(struct timespec end, struct timespec start);
 int mstat_find_program(const char *name, char *where);
+void mstat_check_argument_str(char **x, char *arg, int i);
+void mstat_check_argument_int(char **x, char *arg, int i);
+void mstat_check_argument_double(char **x, char *arg, int i);
 
 #endif //MSTAT_COMMON_H
