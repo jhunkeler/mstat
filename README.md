@@ -24,6 +24,7 @@ make install
 usage: mstat [OPTIONS] [-p PID] | {PROGRAM... ARGS}
   -c        clobber 'PID#.mstat' if it exists
   -h        this help message
+  -l LIMIT  stop execution after LIMIT samples
   -o DIR    path to output directory (must exist)
   -p PID    process id to monitor
   -s RATE   samples per second (default: 1.00)
