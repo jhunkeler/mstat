@@ -10,13 +10,11 @@
 #endif
 static int enable_cls = 1;
 
-struct Option {
+static struct Option {
     /** Increased verbosity */
     unsigned char verbose;
     /** Overwrite existing file(s) */
     unsigned char clobber;
-    /** Program to execute */
-    char *program;
     /** PID to track */
     pid_t pid;
     /** PID subprocess status */
@@ -29,6 +27,8 @@ struct Option {
     char filename[PATH_MAX];
     /** Number of times per second mstat samples a pid */
     double sample_rate;
+    /** Maximum number of samples (0 = disabled) */
+    size_t sample_limit;
 } option;
 
 /**
@@ -66,7 +66,14 @@ static void handle_interrupt(int sig) {
                 fclose(option.file);
                 // Let stdout/stderr catch up
                 usleep(100000);
-                printf("MSTAT file written: %s\n", realpath(option.filename, NULL));
+                char *rp = realpath(option.filename, NULL);
+                if (!rp) {
+                    fprintf(stderr, "Unable to resolve path: %s (%s)", option.filename, strerror(errno));
+                    exit(1);
+                } else {
+                    printf("MSTAT file written: %s\n", rp);
+                    free(rp);
+                }
             }
             exit(0);
         default:
@@ -87,6 +94,7 @@ static void usage(char *prog) {
     printf("usage: %s [OPTIONS] [-p PID] | {PROGRAM... ARGS}\n"
            "  -c        clobber 'PID#.mstat' if it exists\n"
            "  -h        this help message\n"
+           "  -l LIMIT  stop execution after LIMIT samples\n"
            "  -o DIR    path to output directory (must exist)\n"
            "  -p PID    process id to monitor\n"
            "  -s RATE   samples per second (default: %0.2lf)\n"
@@ -98,8 +106,9 @@ static void usage(char *prog) {
  * Parse program arguments and update global config
  * @param argc
  * @param argv
+ * @return starting index of positional arguments. -1 if no positional arguments.
  */
-int parse_options(int argc, char *argv[]) {
+static int parse_options(int argc, char *argv[]) {
     if (argc < 2) {
         usage(argv[0]);
         exit(1);
@@ -115,13 +124,30 @@ int parse_options(int argc, char *argv[]) {
                 option.verbose = 1;
             } else if (!strcmp(arg, "c")) {
                 option.clobber = 1;
+            } else if (!strcmp(arg, "l")) {
+                mstat_check_argument_int(argv, arg, i);
+                option.sample_limit = strtol(argv[i+1], NULL, 10);
+                if (option.sample_limit < 1) {
+                    fprintf(stderr, "invalid sample limit: %zi. sample limit disabled.\n",
+                            option.sample_limit);
+                    option.sample_limit = 0;
+                }
+                i++;
             } else if (!strcmp(arg, "o")) {
+                mstat_check_argument_str(argv, arg, i);
                 strncpy(option.root, argv[i+1], PATH_MAX - 1);
                 i++;
             } else if (!strcmp(arg, "s")) {
+                mstat_check_argument_double(argv, arg, i);
                 option.sample_rate = strtod(argv[i+1], NULL);
+                if (option.sample_rate < 0.0) {
+                    fprintf(stderr, "invalid sample rate: %.2lf\ndefault rate applied.\n",
+                            option.sample_rate);
+                    option.sample_rate = 1.0;
+                }
                 i++;
             } else if (!strcmp(arg, "p")) {
+                mstat_check_argument_int(argv, arg, i);
                 option.pid = (pid_t) strtol(argv[i+1], NULL, 10);
                 i++;
             }
@@ -262,8 +288,8 @@ int main(int argc, char *argv[]) {
         }
 
         // Construct new filename
-        char tmppath[PATH_MAX];
-        snprintf(tmppath, PATH_MAX - 1, "%s/%s", option.root, option.filename);
+        char tmppath[PATH_MAX * 2] = {0};
+        snprintf(tmppath, sizeof(tmppath), "%s/%s", option.root, option.filename);
         strncpy(option.filename, tmppath, PATH_MAX - 1);
     }
 
@@ -304,6 +330,9 @@ int main(int argc, char *argv[]) {
 
     i = 0;
     while (1) {
+        if (option.sample_limit && i >= option.sample_limit) {
+            break;
+        }
         if (option.verbose && isatty(STDOUT_FILENO)) {
             clearscr();
         }
@@ -324,8 +353,14 @@ int main(int argc, char *argv[]) {
         }
 
         if (option.verbose) {
-            printf("\nPID: %d, Sample: %zu, Elapsed: %lf\n----\n",
-                   record.pid, i, record.timestamp);
+            printf("\nPID: %d, ", record.pid);
+            printf("Sample: %zu", i + 1);
+            if (option.sample_limit > 0) {
+                printf("/%zu, ", option.sample_limit);
+            } else {
+                printf(", ");
+            }
+            printf("Elapsed: %lf\n----\n", record.timestamp);
             for (size_t n = 2, x = 0; mstat_field_names[n] != NULL; n++) {
                 if (x == 3) {
                     x = 0;
